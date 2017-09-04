@@ -11,6 +11,7 @@ import (
 	_ "image/jpeg"
 //	"html/template"
 	"os/exec"
+	"net/url"
 )
 
 var html_head string = `<!DOCTYPE html>
@@ -242,6 +243,14 @@ func Filter(vs []string, f func(string) bool) []string {
 	return vsf
 }
 
+func EscapeUrlPath(urlstr string) string {
+	r := make([]string, 0)
+	for _, p := range strings.Split(urlstr, "/") {
+		r = append(r, url.PathEscape(p))
+	}
+	return strings.Join(r, "/")
+}
+
 func create_index(node FolderNode) {
 	folder_path := node.Path
 	allfiles, _ := filepath.Glob(folder_path + "/*")
@@ -287,7 +296,7 @@ func create_index(node FolderNode) {
 		}
 		var items []ImageItem
 		for _, file := range files {
-			link_path := link_base_path + filepath.Base(file)
+			link_path := EscapeUrlPath(link_base_path + filepath.Base(file))
 			symlink_path := filepath.Join(output_path, filepath.Base(file))
 			os.Symlink(file, symlink_path)
 			w, h := image_size(file)
@@ -298,7 +307,7 @@ func create_index(node FolderNode) {
 		idx_file.WriteString(html_head)
 		for i, file := range files {
 			tn_path := filepath.Join(output_path, "tn_" + filepath.Base(file))
-			tn_link_path := link_base_path + filepath.Base(tn_path)
+			tn_link_path := EscapeUrlPath(link_base_path + filepath.Base(tn_path))
 			if _, err := os.Stat(tn_path); os.IsNotExist(err) || forceThumb {
 				vipsthumbnail(file, tn_path)
 			}
