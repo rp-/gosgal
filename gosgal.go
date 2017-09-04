@@ -217,6 +217,7 @@ func vipsthumbnail(origFile, newFile string) (int, int) {
 	var args = []string{
 		"-s", "320",
 		"--crop",
+		"--rotate",
 		"-o", newFile,
 		origFile,
 	}
