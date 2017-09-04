@@ -287,8 +287,9 @@ func create_index(node FolderNode) {
 		}
 		var items []ImageItem
 		for _, file := range files {
-			link_path := filepath.Join(link_base_path, filepath.Base(file))
-			os.Symlink(file, link_path)
+			link_path := link_base_path + filepath.Base(file)
+			symlink_path := filepath.Join(output_path, filepath.Base(file))
+			os.Symlink(file, symlink_path)
 			w, h := image_size(file)
 			item := ImageItem{Src: link_path, W: w, H: h}
 			items = append(items, item)
