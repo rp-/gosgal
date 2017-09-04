@@ -248,7 +248,15 @@ func create_index(node FolderNode) {
 	files := Filter(allfiles, is_supported)
 
 	if len(files) > 0 {
-		output_path := filepath.Join(OutputPath, folder_path[len(RootPath):])
+		folder_fragment := folder_path[len(RootPath):]
+		output_path := filepath.Join(OutputPath, folder_fragment)
+		if !strings.HasSuffix(output_path, "/") {
+			output_path += "/"
+		}
+		link_base_path := output_path
+		if BasePath != "" {
+			link_base_path = BasePath + folder_fragment
+		}
 		os.MkdirAll(output_path, 0755)
 		idx_file, _ := os.Create(filepath.Join(output_path, "index.html"))
 		defer idx_file.Close()
@@ -279,7 +287,7 @@ func create_index(node FolderNode) {
 		}
 		var items []ImageItem
 		for _, file := range files {
-			link_path := filepath.Join(output_path, filepath.Base(file))
+			link_path := filepath.Join(link_base_path, filepath.Base(file))
 			os.Symlink(file, link_path)
 			w, h := image_size(file)
 			item := ImageItem{Src: link_path, W: w, H: h}
@@ -289,10 +297,11 @@ func create_index(node FolderNode) {
 		idx_file.WriteString(html_head)
 		for i, file := range files {
 			tn_path := filepath.Join(output_path, "tn_" + filepath.Base(file))
+			tn_link_path := link_base_path + filepath.Base(tn_path)
 			if _, err := os.Stat(tn_path); os.IsNotExist(err) || forceThumb {
 				vipsthumbnail(file, tn_path)
 			}
-			idx_file.WriteString(fmt.Sprintf(html_img_div, tn_path, i, filepath.Base(file)))
+			idx_file.WriteString(fmt.Sprintf(html_img_div, tn_link_path, i, filepath.Base(file)))
 		}
 
 		idx_file.WriteString(fmt.Sprintf(html_footer, b))
@@ -370,11 +379,14 @@ func FindParentPictureNode(start *FolderNode) *FolderNode {
 	return nil
 }
 
-var basePath string
+var BasePath string
 var forceThumb bool
 func init() {
 	flag.BoolVar(&forceThumb, "thumb", false, "force thumbnail creation")
-	flag.StringVar(&basePath, "base", "/", "base directory for paths")
+	flag.StringVar(&BasePath, "base", "", "base directory for paths")
+	if BasePath != "" && !strings.HasSuffix(BasePath, "/") {
+		BasePath += "/"
+	}
 }
 
 var OutputPath string
