@@ -409,10 +409,10 @@ func main() {
 	}
 	OutputPath = flag.Arg(0)
 	RootPath = flag.Arg(1)
-	fn := FolderNode{Path: RootPath, Parent: nil, HasPictures: HasPictures(RootPath)}
+	fn := FolderNode{Path: RootPath, Parent: nil, HasPictures: true}
 	BuildFolderTree(RootPath, &fn)
-	fmt.Println(fn)
-	ll := LinkList(fn)
-	fmt.Println(ll)
+	//fmt.Println(fn)
+	//ll := LinkList(fn)
+	//fmt.Println(ll)
 	CreateIndexes(fn)
 }
