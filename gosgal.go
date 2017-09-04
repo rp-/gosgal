@@ -275,7 +275,7 @@ func create_index(node FolderNode) {
 		idx_file.WriteString("<ul>")
 		parent_picture_node := FindParentPictureNode(&node)
 		if parent_picture_node != nil {
-			parent_output_path := filepath.Join(OutputPath, parent_picture_node.Path[len(RootPath):])
+			parent_output_path := link_base_path + parent_picture_node.Path[len(RootPath):]
 			idx_file.WriteString(
 				fmt.Sprintf("<li><a href=\"%s\">..</a></li>",
 					parent_output_path + "/index.html" ))
