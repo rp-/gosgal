@@ -255,7 +255,7 @@ func create_index(node FolderNode) {
 		}
 		link_base_path := output_path
 		if BasePath != "" {
-			link_base_path = BasePath + folder_fragment
+			link_base_path = BasePath + folder_fragment + "/"
 		}
 		os.MkdirAll(output_path, 0755)
 		idx_file, _ := os.Create(filepath.Join(output_path, "index.html"))
