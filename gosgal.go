@@ -99,9 +99,9 @@ body.no-touch .boxInner:hover .titleBox, body.touch .boxInner.touchFocus .titleB
 }
 
 .columns {
-  -moz-column-width: 11.5em;
-  -webkit-column-width: 11.5em;
-  column-width: 11.5em;
+  -moz-column-width: 20em;
+  -webkit-column-width: 20em;
+  column-width: 20em;
   font-size: 1.4em;
   padding: 1em;
 }
