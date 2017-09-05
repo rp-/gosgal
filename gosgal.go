@@ -98,10 +98,26 @@ body.no-touch .boxInner:hover .titleBox, body.touch .boxInner.touchFocus .titleB
    }
 }
 
-ul {
-  column-count: 3;
+.columns {
+  -moz-column-width: 11.5em;
+  -webkit-column-width: 11.5em;
+  column-width: 11.5em;
+  font-size: 1.4em;
+  padding: 1em;
+}
+
+.columns ul {
+  margin: 0;
+  padding: 0;
   list-style-type: none;
-  font: 14px 'Lucida Sans',sans-serif;
+}
+
+.columns ul li:first-child {
+  margin-top: 0px;
+}
+
+.columns li {
+  padding: 0.2em;
 }
   </style>
 </head>
@@ -153,11 +169,9 @@ ul {
           </div>
       </div>
   </div>
-  <div class="wrap">
 `
 
-var html_footer string = `  </div>
-	<script>
+var html_footer string = `	<script>
   var openPhotoSwipe = function(index) {
       var pswpElement = document.querySelectorAll('.pswp')[0];
 
@@ -258,66 +272,67 @@ func create_index(node FolderNode) {
 	allfiles, _ := filepath.Glob(folder_path + "/*")
 	files := Filter(allfiles, is_supported)
 
-	if len(files) > 0 {
-		folder_fragment := folder_path[len(RootPath):]
-		output_path := filepath.Join(OutputPath, folder_fragment)
-		if !strings.HasSuffix(output_path, "/") {
-			output_path += "/"
-		}
-		link_base_path := output_path
-		if BasePath != "" {
-			link_base_path = BasePath + folder_fragment + "/"
-		}
-		os.MkdirAll(output_path, 0755)
-		idx_file, _ := os.Create(filepath.Join(output_path, "index.html"))
-		defer idx_file.Close()
-
-		// create folder link list
-		idx_file.WriteString("<ul>")
-		parent_picture_node := FindParentPictureNode(&node)
-		if parent_picture_node != nil {
-			parent_output_path := link_base_path + parent_picture_node.Path[len(RootPath):]
-			idx_file.WriteString(
-				fmt.Sprintf("<li><a href=\"%s\">..</a></li>",
-					parent_output_path + "/index.html" ))
-		}
-
-		subfolders := LinkList(node)
-		for _, folder := range subfolders {
-			idx_file.WriteString(
-				fmt.Sprintf("<li><a href=\"%s\">%s</a></li>", folder[len(folder_path) + 1:] + "/index.html",
-					folder[len(RootPath):] ))
-		}
-		idx_file.WriteString("</ul>")
-
-		// create image grid
-		type ImageItem struct {
-			Src string `json:"src"`
-			W int `json:"w"`
-			H int `json:"h"`
-		}
-		var items []ImageItem
-		for _, file := range files {
-			link_path := EscapeUrlPath(link_base_path + filepath.Base(file))
-			symlink_path := filepath.Join(output_path, filepath.Base(file))
-			os.Symlink(file, symlink_path)
-			w, h := image_size(file)
-			item := ImageItem{Src: link_path, W: w, H: h}
-			items = append(items, item)
-		}
-		b, _ := json.Marshal(items)
-		idx_file.WriteString(html_head)
-		for i, file := range files {
-			tn_path := filepath.Join(output_path, "tn_" + filepath.Base(file))
-			tn_link_path := EscapeUrlPath(link_base_path + filepath.Base(tn_path))
-			if _, err := os.Stat(tn_path); os.IsNotExist(err) || forceThumb {
-				vipsthumbnail(file, tn_path)
-			}
-			idx_file.WriteString(fmt.Sprintf(html_img_div, tn_link_path, i, filepath.Base(file)))
-		}
-
-		idx_file.WriteString(fmt.Sprintf(html_footer, b))
+	folder_fragment := folder_path[len(RootPath):]
+	output_path := filepath.Join(OutputPath, folder_fragment)
+	if !strings.HasSuffix(output_path, "/") {
+		output_path += "/"
 	}
+	link_base_path := output_path
+	if BasePath != "" {
+		link_base_path = BasePath + folder_fragment + "/"
+	}
+	os.MkdirAll(output_path, 0755)
+	idx_file, _ := os.Create(filepath.Join(output_path, "index.html"))
+	defer idx_file.Close()
+
+	idx_file.WriteString(html_head)
+
+	// create folder link list
+	idx_file.WriteString("<div class=\"columns\"><ul>")
+	parent_picture_node := FindParentPictureNode(&node)
+	if parent_picture_node != nil {
+		parent_output_path := OutputPath + parent_picture_node.Path[len(RootPath):]
+		idx_file.WriteString(
+			fmt.Sprintf("<li><a href=\"%s\">..</a></li>",
+				parent_output_path + "/index.html" ))
+	}
+
+	subfolders := LinkList(node)
+	for _, folder := range subfolders {
+		idx_file.WriteString(
+			fmt.Sprintf("<li><a href=\"%s\">%s</a></li>", folder[len(folder_path) + 1:] + "/index.html",
+				folder[len(RootPath):] ))
+	}
+	idx_file.WriteString("</ul></div>")
+
+	// create image grid
+	type ImageItem struct {
+		Src string `json:"src"`
+		W int `json:"w"`
+		H int `json:"h"`
+	}
+	var items []ImageItem
+	for _, file := range files {
+		link_path := EscapeUrlPath(link_base_path + filepath.Base(file))
+		symlink_path := filepath.Join(output_path, filepath.Base(file))
+		os.Symlink(file, symlink_path)
+		w, h := image_size(file)
+		item := ImageItem{Src: link_path, W: w, H: h}
+		items = append(items, item)
+	}
+	b, _ := json.Marshal(items)
+	idx_file.WriteString("<div id=\"wrap\">")
+	for i, file := range files {
+		tn_path := filepath.Join(output_path, "tn_" + filepath.Base(file))
+		tn_link_path := EscapeUrlPath(link_base_path + filepath.Base(tn_path))
+		if _, err := os.Stat(tn_path); os.IsNotExist(err) || forceThumb {
+			vipsthumbnail(file, tn_path)
+		}
+		idx_file.WriteString(fmt.Sprintf(html_img_div, tn_link_path, i, filepath.Base(file)))
+	}
+
+	idx_file.WriteString("</div>")
+	idx_file.WriteString(fmt.Sprintf(html_footer, b))
 }
 
 func CreateIndexes(node FolderNode) {
