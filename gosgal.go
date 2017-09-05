@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"image"
 	_ "image/jpeg"
-//	"html/template"
 	"os/exec"
 	"net/url"
 )
@@ -253,6 +252,9 @@ func EscapeUrlPath(urlstr string) string {
 }
 
 func create_index(node FolderNode) {
+	if Verbose {
+		fmt.Println("Processing %s...", node.Path)
+	}
 	folder_path := node.Path
 	allfiles, _ := filepath.Glob(folder_path + "/*")
 	files := Filter(allfiles, is_supported)
@@ -392,7 +394,9 @@ func FindParentPictureNode(start *FolderNode) *FolderNode {
 
 var BasePath string
 var forceThumb bool
+var Verbose bool
 func init() {
+	flag.BoolVar(&Verbose, "verbose", false, "verbose output")
 	flag.BoolVar(&forceThumb, "thumb", false, "force thumbnail creation")
 	flag.StringVar(&BasePath, "base", "", "base directory for paths")
 	if BasePath != "" && !strings.HasSuffix(BasePath, "/") {
@@ -405,6 +409,7 @@ var RootPath string
 func main() {
 	flag.Parse()
 	if flag.NArg() != 2 {
+		fmt.Println("gosgal [options] outputdir picturedir")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
