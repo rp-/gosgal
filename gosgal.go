@@ -226,8 +226,7 @@ func vipsthumbnail(origFile, newFile string) (int, int) {
 	cmd = exec.Command(path, args...)
 	err := cmd.Run()
 	if err != nil {
-		fmt.Println(args)
-		panic(err)
+		fmt.Errorf("Error running vipsthumbnail: %s", args)
 	}
 
 	return image_size(newFile)
