@@ -266,7 +266,7 @@ func EscapeUrlPath(urlstr string) string {
 
 func create_index(node FolderNode) {
 	if Verbose {
-		fmt.Println("Processing %s...", node.Path)
+		fmt.Println(fmt.Sprintf("Processing %s...", node.Path))
 	}
 	folder_path := node.Path
 	allfiles, _ := filepath.Glob(folder_path + "/*")
