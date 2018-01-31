@@ -1,16 +1,17 @@
 package main
 
 import (
-	"flag"
-	"path/filepath"
-	"os"
-	"fmt"
-	"strings"
 	"encoding/json"
+	"flag"
+	"fmt"
 	"image"
 	_ "image/jpeg"
-	"os/exec"
 	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 var html_head string = `<!DOCTYPE html>
@@ -226,13 +227,15 @@ func image_size(path string) (int, int) {
 	return j.Width, j.Height
 }
 
-func vipsthumbnail(origFile, newFile string) (int, int) {
+func vipsthumbnail(origFile, newFile string, size int, crop bool) (int, int) {
 	var args = []string{
-		"-s", "320",
-		"--crop",
+		"-s", strconv.Itoa(size),
 		"--rotate",
 		"-o", newFile,
 		origFile,
+	}
+	if crop {
+		args = append(args, "--crop")
 	}
 
 	var cmd *exec.Cmd
@@ -259,9 +262,11 @@ func Filter(vs []string, f func(string) bool) []string {
 func EscapeUrlPath(urlstr string) string {
 	r := make([]string, 0)
 	for _, p := range strings.Split(urlstr, "/") {
-		r = append(r, url.PathEscape(p))
+		if p != "" {
+			r = append(r, url.PathEscape(p))
+		}
 	}
-	return strings.Join(r, "/")
+	return "/" + strings.Join(r, "/")
 }
 
 func create_index(node FolderNode) {
@@ -279,7 +284,11 @@ func create_index(node FolderNode) {
 	}
 	link_base_path := output_path
 	if BasePath != "" {
-		link_base_path = BasePath + folder_fragment + "/"
+		if folder_fragment != "" {
+			link_base_path = BasePath + folder_fragment + "/"
+		} else {
+			link_base_path = BasePath
+		}
 	}
 	os.MkdirAll(output_path, 0755)
 	idx_file, _ := os.Create(filepath.Join(output_path, "index.html"))
@@ -291,42 +300,46 @@ func create_index(node FolderNode) {
 	idx_file.WriteString("<div class=\"columns\"><ul>")
 	parent_picture_node := FindParentPictureNode(&node)
 	if parent_picture_node != nil {
-		parent_output_path := BasePath + "/" + parent_picture_node.Path[len(RootPath):]
+		parent_output_path := BasePath + parent_picture_node.Path[len(RootPath):]
 		idx_file.WriteString(
 			fmt.Sprintf("<li><a href=\"%s\">..</a></li>",
-				parent_output_path + "/index.html" ))
+				EscapeUrlPath(parent_output_path+"/index.html")))
 	}
 
 	subfolders := LinkList(node)
 	for _, folder := range subfolders {
 		idx_file.WriteString(
-			fmt.Sprintf("<li><a href=\"%s\">%s</a></li>", folder[len(folder_path) + 1:] + "/index.html",
-				folder[len(RootPath):] ))
+			fmt.Sprintf("<li><a href=\"%s\">%s</a></li>", EscapeUrlPath(link_base_path+folder[len(RootPath+folder_fragment):]+"/index.html"),
+				folder[len(RootPath):]))
 	}
 	idx_file.WriteString("</ul></div>")
 
 	// create image grid
 	type ImageItem struct {
-		Src string `json:"src"`
-		W int `json:"w"`
-		H int `json:"h"`
+		Src  string `json:"src"`
+		Msrc string `json:"msrc"`
+		W    int    `json:"w"`
+		H    int    `json:"h"`
 	}
 	var items []ImageItem
 	for _, file := range files {
 		link_path := EscapeUrlPath(link_base_path + filepath.Base(file))
 		symlink_path := filepath.Join(output_path, filepath.Base(file))
+		tn_msrc_path := EscapeUrlPath(link_base_path + "tn_msrc_" + filepath.Base(file))
 		os.Symlink(file, symlink_path)
 		w, h := image_size(file)
-		item := ImageItem{Src: link_path, W: w, H: h}
+		item := ImageItem{Src: link_path, Msrc: tn_msrc_path, W: w, H: h}
 		items = append(items, item)
 	}
 	b, _ := json.Marshal(items)
 	idx_file.WriteString("<div id=\"wrap\">")
 	for i, file := range files {
-		tn_path := filepath.Join(output_path, "tn_" + filepath.Base(file))
+		tn_path := filepath.Join(output_path, "tn_"+filepath.Base(file))
+		tn_msrc_path := filepath.Join(output_path, "tn_msrc_"+filepath.Base(file))
 		tn_link_path := EscapeUrlPath(link_base_path + filepath.Base(tn_path))
 		if _, err := os.Stat(tn_path); os.IsNotExist(err) || forceThumb {
-			vipsthumbnail(file, tn_path)
+			vipsthumbnail(file, tn_path, 320, true)
+			vipsthumbnail(file, tn_msrc_path, 1600, false)
 		}
 		idx_file.WriteString(fmt.Sprintf(html_img_div, tn_link_path, i, filepath.Base(file)))
 	}
@@ -346,9 +359,9 @@ func CreateIndexes(node FolderNode) {
 }
 
 type FolderNode struct {
-	Path string
-	Parent *FolderNode
-	Children []*FolderNode
+	Path        string
+	Parent      *FolderNode
+	Children    []*FolderNode
 	HasPictures bool
 }
 
@@ -409,19 +422,23 @@ func FindParentPictureNode(start *FolderNode) *FolderNode {
 var BasePath string
 var forceThumb bool
 var Verbose bool
+
 func init() {
 	flag.BoolVar(&Verbose, "verbose", false, "verbose output")
 	flag.BoolVar(&forceThumb, "thumb", false, "force thumbnail creation")
 	flag.StringVar(&BasePath, "base", "", "base directory for paths")
-	if BasePath != "" && !strings.HasSuffix(BasePath, "/") {
-		BasePath += "/"
-	}
 }
 
 var OutputPath string
 var RootPath string
+
 func main() {
 	flag.Parse()
+
+	if BasePath != "" && !strings.HasSuffix(BasePath, "/") {
+		BasePath += "/"
+	}
+
 	if flag.NArg() != 2 {
 		fmt.Println("gosgal [options] outputdir picturedir")
 		flag.PrintDefaults()
