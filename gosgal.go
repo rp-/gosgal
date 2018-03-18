@@ -23,6 +23,8 @@ var html_head string = `<!DOCTYPE html>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/photoswipe/4.1.2/default-skin/default-skin.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/photoswipe/4.1.2/photoswipe.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/photoswipe/4.1.2/photoswipe-ui-default.min.js"></script>
+  <script defer src="https://use.fontawesome.com/releases/v5.0.8/js/solid.js" integrity="sha384-+Ga2s7YBbhOD6nie0DzrZpJes+b2K1xkpKxTFFcx59QmVPaSA8c7pycsNaFwUK6l" crossorigin="anonymous"></script>
+  <script defer src="https://use.fontawesome.com/releases/v5.0.8/js/fontawesome.js" integrity="sha384-7ox8Q2yzO/uWircfojVuCQOZl+ZZBg2D2J5nkpLqzH1HY0C1dHlTKIbpRz/LG23c" crossorigin="anonymous"></script>
   <style>
 body {
    margin: 0;
@@ -302,7 +304,7 @@ func create_index(node FolderNode) {
 	if parent_picture_node != nil {
 		parent_output_path := BasePath + parent_picture_node.Path[len(RootPath):]
 		idx_file.WriteString(
-			fmt.Sprintf("<li><a href=\"%s\">..</a></li>",
+			fmt.Sprintf("<li><a href=\"%s\"><i class=\"fas fa-level-up-alt fa-lg\"></i></a></li>",
 				EscapeUrlPath(parent_output_path+"/index.html")))
 	}
 
