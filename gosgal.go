@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"github.com/rwcarlsen/goexif/exif"
 )
 
 var html_head string = `<!DOCTYPE html>
@@ -19,10 +20,10 @@ var html_head string = `<!DOCTYPE html>
 <head>
   <title>/Pictures</title>
   <meta name="viewport" charset="utf-8" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/photoswipe/4.1.2/photoswipe.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/photoswipe/4.1.2/default-skin/default-skin.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/photoswipe/4.1.2/photoswipe.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/photoswipe/4.1.2/photoswipe-ui-default.min.js"></script>
+  <link rel="stylesheet" href="/photos/photoswipe-4.1.3/photoswipe.css">
+  <link rel="stylesheet" href="/photos/photoswipe-4.1.3/default-skin/default-skin.css">
+  <script src="/photos/photoswipe-4.1.3/photoswipe.min.js"></script>
+  <script src="/photos/photoswipe-4.1.3/photoswipe-ui-default.min.js"></script>
   <script defer src="https://use.fontawesome.com/releases/v5.0.8/js/solid.js" integrity="sha384-+Ga2s7YBbhOD6nie0DzrZpJes+b2K1xkpKxTFFcx59QmVPaSA8c7pycsNaFwUK6l" crossorigin="anonymous"></script>
   <script defer src="https://use.fontawesome.com/releases/v5.0.8/js/fontawesome.js" integrity="sha384-7ox8Q2yzO/uWircfojVuCQOZl+ZZBg2D2J5nkpLqzH1HY0C1dHlTKIbpRz/LG23c" crossorigin="anonymous"></script>
   <style>
@@ -229,6 +230,29 @@ func image_size(path string) (int, int) {
 	return j.Width, j.Height
 }
 
+func image_orientation(path string) int {
+	f, _ := os.Open(path)
+	defer f.Close()
+	x, err := exif.Decode(f)
+	if err != nil {
+		return 0
+	}
+
+	val, err := x.Get(exif.Orientation)
+	if err != nil {
+		return 0
+	}
+
+	orient_val, _ := val.Int(0)
+	if orient_val == 6 {
+		return 90
+	} else if orient_val == 8 {
+		return -90
+	}
+
+	return 0
+}
+
 func vipsthumbnail(origFile, newFile string, size int, crop bool) (int, int) {
 	var args = []string{
 		"-s", strconv.Itoa(size),
@@ -322,6 +346,7 @@ func create_index(node FolderNode) {
 		Msrc string `json:"msrc"`
 		W    int    `json:"w"`
 		H    int    `json:"h"`
+		Rotate int `json:"rotate,omitempty"`
 	}
 	var items []ImageItem
 	for _, file := range files {
@@ -330,7 +355,11 @@ func create_index(node FolderNode) {
 		tn_msrc_path := EscapeUrlPath(link_base_path + "tn_msrc_" + filepath.Base(file))
 		os.Symlink(file, symlink_path)
 		w, h := image_size(file)
-		item := ImageItem{Src: link_path, Msrc: tn_msrc_path, W: w, H: h}
+		rotation := image_orientation(file)
+		if rotation != 0 {
+			h, w = w, h
+		}
+		item := ImageItem{Src: link_path, Msrc: tn_msrc_path, W: w, H: h, Rotate: rotation}
 		items = append(items, item)
 	}
 	b, _ := json.Marshal(items)
