@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<link rel="stylesheet" href="{{.Assets}}photoswipe.css?v={{.Ver}}">
+<link rel="stylesheet" href="{{.Assets}}gosgal.css?v={{.Ver}}">
+</head>
+<body>
+<header class="bar">
+  <nav class="crumbs">
+    {{- range .Crumbs}}<a href="{{.URL}}">{{.Name}}</a><span class="sep">›</span>{{end -}}
+    <span class="current">{{.Name}}</span>
+  </nav>
+  <nav class="modes">
+    <a class="active" href="{{.Root}}">Albums</a>
+    <a href="{{.Timeline}}">Timeline</a>
+  </nav>
+</header>
+<main>
+  <div class="heading">
+    <h1>{{.Name}}</h1>
+    <p class="info">{{.Count}} photos · {{.Dates}}</p>
+  </div>
+  {{- if .Albums}}
+  <section class="albums">
+    {{- range .Albums}}
+    <a class="card" href="{{.URL}}">
+      <img loading="lazy" src="{{.Cover}}" alt="">
+      <span class="label"><strong>{{.Name}}</strong><small>{{.Count}} photos · {{.Dates}}</small></span>
+    </a>
+    {{- end}}
+  </section>
+  {{- end}}
+  {{- if .Photos}}
+  <section class="grid" id="photos">
+    {{- range .Photos}}
+    <a href="{{.Src}}" style="{{.Style}}" data-pswp-width="{{.W}}" data-pswp-height="{{.H}}" {{.SrcsetAttr}} data-orig="{{.Orig}}" data-name="{{.Name}}" data-date="{{.Date}}" data-dsrc="{{.DateSrc}}">
+      <img loading="lazy" src="{{.Thumb}}" width="{{.TW}}" height="{{.TH}}" alt="{{.Name}}">
+    </a>
+    {{- end}}
+  </section>
+  {{- end}}
+</main>
+<script type="module" src="{{.Assets}}album.js?v={{.Ver}}"></script>
+</body>
+</html>

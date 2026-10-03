@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<link rel="stylesheet" href="{{.Assets}}photoswipe.css?v={{.Ver}}">
+<link rel="stylesheet" href="{{.Assets}}gosgal.css?v={{.Ver}}">
+</head>
+<body class="timeline-page" data-timeline="{{.Data}}">
+<header class="bar">
+  <nav class="crumbs"><span class="current" id="current-month"></span></nav>
+  <nav class="modes">
+    <a href="{{.Root}}">Albums</a>
+    <a class="active" href="#">Timeline</a>
+  </nav>
+</header>
+<aside class="years" id="years"></aside>
+<main id="timeline"></main>
+<script type="module" src="{{.Assets}}timeline.js?v={{.Ver}}"></script>
+</body>
+</html>
