@@ -21,7 +21,7 @@ import (
 const dateLayout = "2006-01-02T15:04:05"
 
 // bump if the meaning of cached values changes
-const cacheVersion = 2
+const cacheVersion = 3
 
 // Meta is everything we need to know about a photo to render it. It is cached
 // between runs, keyed by the path relative to the picture root.
@@ -37,7 +37,9 @@ type Meta struct {
 	// size of the medium version
 	MW int `json:"mw"`
 	MH int `json:"mh"`
-	// "2006-01-02T15:04:05", local time as recorded
+	// capture date from EXIF if there is a sane one, "2006-01-02T15:04:05"
+	Exif string `json:"exif,omitempty"`
+	// the date used for sorting, see resolveDate; same format as Exif
 	Date string `json:"date"`
 	// where the date came from: exif, name, folder, mtime, year
 	DateSrc string `json:"dsrc"`
@@ -213,31 +215,70 @@ func yearFromName(name string) int {
 	return 0
 }
 
-// guessDate is the fallback for photos without a usable EXIF date.
-func guessDate(p *Photo, mtime time.Time) (time.Time, string) {
+// folderDate returns the date of the nearest folder that has a full date in its
+// name, or else January 1st of the outermost folder with a year in its name.
+// Outermost, because deeper folders have names like "Jpeg 1920 pix Adobe RGB 1998".
+func folderDate(a *Album) (t time.Time, full, ok bool) {
+	year := 0
+	for ; a != nil && a.Rel != ""; a = a.Parent {
+		if t, ok := dateFromFolderName(a.Name); ok {
+			return t, true, true
+		}
+		if y := yearFromName(a.Name); y != 0 {
+			year = y
+		}
+	}
+	if year != 0 {
+		return time.Date(year, 1, 1, 0, 0, 0, 0, time.Local), false, true
+	}
+	return time.Time{}, false, false
+}
+
+// plausible reports whether t fits the folder date: within a year of a full
+// date, or at most one year off a year folder.
+func plausible(t, folder time.Time, full bool) bool {
+	if full {
+		d := t.Sub(folder)
+		return d > -366*24*time.Hour && d < 366*24*time.Hour
+	}
+	d := t.Year() - folder.Year()
+	return d >= -1 && d <= 1
+}
+
+// resolveDate picks the date of a photo. EXIF wins unless it is far off the
+// folder date, which happens with cameras whose clock was never set.
+func resolveDate(p *Photo) {
+	mtime := time.Unix(p.MTime, 0)
+	folder, full, haveFolder := folderDate(p.Album)
+	set := func(t time.Time, src string) {
+		p.Date = t.Format(dateLayout)
+		p.DateSrc = src
+	}
+
+	if p.Exif != "" {
+		if t := parseDate(p.Exif); !haveFolder || plausible(t, folder, full) {
+			set(t, "exif")
+			return
+		}
+	}
 	if t, ok := dateFromFileName(p.Name); ok {
-		return t, "name"
+		set(t, "name")
+		return
 	}
-	var folders []string
-	for a := p.Album; a != nil && a.Rel != ""; a = a.Parent {
-		folders = append(folders, a.Name)
-	}
-	for _, f := range folders {
-		if t, ok := dateFromFolderName(f); ok {
-			return t, "folder"
+	switch {
+	case haveFolder && full:
+		set(folder, "folder")
+	case haveFolder && mtime.Year() == folder.Year():
+		set(mtime, "mtime")
+	case haveFolder:
+		set(folder, "year")
+	default:
+		if y := yearFromName(p.Name); y != 0 && y != mtime.Year() {
+			set(time.Date(y, 1, 1, 0, 0, 0, 0, time.Local), "year")
+		} else {
+			set(mtime, "mtime")
 		}
 	}
-	year := yearFromName(p.Name)
-	for _, f := range folders {
-		if year != 0 {
-			break
-		}
-		year = yearFromName(f)
-	}
-	if year != 0 && mtime.Year() != year {
-		return time.Date(year, 1, 1, 0, 0, 0, 0, time.Local), "year"
-	}
-	return mtime, "mtime"
 }
 
 // process makes sure thumbnails and the symlink to the original exist in outDir
@@ -276,6 +317,7 @@ func process(p *Photo, outDir string, cached Meta, haveCache, force bool) (int, 
 
 	if haveCache && generated == 0 && cached.Size == fi.Size() && cached.MTime == mtime.Unix() {
 		p.Meta = cached
+		resolveDate(p)
 		return 0, nil
 	}
 
@@ -303,12 +345,10 @@ func process(p *Photo, outDir string, cached Meta, haveCache, force bool) (int, 
 		date, ok = exifDate(x)
 	}
 	if ok {
-		m.DateSrc = "exif"
-	} else {
-		date, m.DateSrc = guessDate(p, mtime)
+		m.Exif = date.Format(dateLayout)
 	}
-	m.Date = date.Format(dateLayout)
 
 	p.Meta = m
+	resolveDate(p)
 	return generated, nil
 }

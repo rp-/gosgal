@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Album is a folder of the picture tree that contains pictures somewhere below it.
@@ -18,10 +19,11 @@ type Album struct {
 	Photos   []*Photo
 
 	// aggregated over the whole subtree, filled by finalize()
-	Count int
-	Start string
-	End   string
-	Cover *Photo
+	Count   int
+	Start   string
+	End     string
+	Cover   *Photo
+	SortKey string
 }
 
 // Photo is a single picture file.
@@ -134,8 +136,8 @@ func (a *Album) finalize() bool {
 	}
 	a.Children = children
 	sort.SliceStable(a.Children, func(i, j int) bool {
-		if a.Children[i].Start != a.Children[j].Start {
-			return a.Children[i].Start < a.Children[j].Start
+		if a.Children[i].SortKey != a.Children[j].SortKey {
+			return a.Children[i].SortKey < a.Children[j].SortKey
 		}
 		return a.Children[i].Name < a.Children[j].Name
 	})
@@ -158,5 +160,32 @@ func (a *Album) finalize() bool {
 			a.End = c.End
 		}
 	}
+	if a.Count > 0 {
+		a.SortKey = a.sortKey()
+	}
 	return a.Count > 0
+}
+
+// sortKey orders albums by the date in the folder name if it matches the
+// photos, or else by the median photo date, so a few misdated photos don't
+// move the whole album.
+func (a *Album) sortKey() string {
+	photos := a.allPhotos()
+	dates := make([]string, len(photos))
+	for i, p := range photos {
+		dates[i] = p.Date
+	}
+	sort.Strings(dates)
+	median := dates[len(dates)/2]
+
+	m := parseDate(median)
+	if t, ok := dateFromFolderName(a.Name); ok && plausible(m, t, true) {
+		return t.Format(dateLayout)
+	}
+	if y := yearFromName(a.Name); y != 0 {
+		if t := time.Date(y, 1, 1, 0, 0, 0, 0, time.Local); plausible(m, t, false) {
+			return t.Format(dateLayout)
+		}
+	}
+	return median
 }
